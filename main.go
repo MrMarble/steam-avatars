@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"html/template"
+	"io"
 	"net/http"
 	"os"
 	"time"
@@ -27,13 +29,26 @@ type AvatarResponse struct {
 
 type ProfileResponse struct {
 	AvatarResponse
-	BackgroundURL string `json:"background_url"`
+	WebmURL  string `json:"webm_url"`
+	Mp4URL   string `json:"mp4_url"`
+	ImageURL string `json:"image_url"`
+}
+
+type Template struct {
+	templates *template.Template
+}
+
+func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+	return t.templates.ExecuteTemplate(w, name, data)
 }
 
 func main() {
 	// Echo instance
 	e := echo.New()
-
+	t := &Template{
+		templates: template.Must(template.ParseGlob("templates/*.svg")),
+	}
+	e.Renderer = t
 	limiter := middleware.NewRateLimiterMemoryStore(1)
 	rateLimiterConfig := middleware.DefaultRateLimiterConfig
 	rateLimiterConfig.Store = limiter
@@ -57,7 +72,14 @@ func main() {
 				if c.QueryParam("format") == "json" {
 					return c.JSON(http.StatusOK, cached)
 				} else {
-					return c.Blob(http.StatusOK, "image/svg+xml", []byte(cached.(AvatarResponse).Html))
+					switch data := cached.(type) {
+					case AvatarResponse:
+						c.Response().Header().Set(echo.HeaderContentType, "image/svg+xml")
+						return c.Render(http.StatusOK, "avatar", data)
+					case ProfileResponse:
+						c.Response().Header().Set(echo.HeaderContentType, "image/svg+xml")
+						return c.Render(http.StatusOK, "profile", data)
+					}
 				}
 			}
 
@@ -116,7 +138,9 @@ func avatar(c echo.Context) error {
 	if c.QueryParam("format") == "json" {
 		return c.JSON(http.StatusOK, data)
 	}
-	return c.Blob(http.StatusOK, "image/svg+xml", []byte(data.Html))
+	c.Response().Header().Set(echo.HeaderContentType, "image/svg+xml")
+	return c.Render(http.StatusOK, "avatar", data)
+	//return c.Blob(http.StatusOK, "image/svg+xml", []byte(data.Html))
 }
 
 // Handler
@@ -138,23 +162,27 @@ func profile(c echo.Context) error {
 	<title>Steam avatar of %s</title>
 	<desc>Generated with https://github.com/mrmarble/steam-avatars</desc>
 	<g>
-	<foreignObject width="640" height="570">
-	<video xmlns="http://www.w3.org/1999/xhtml" width="640" height="570" autoplay="" loop="">
-	<source src="%s" type="video/mp4"/>
-	</video>
-	</foreignObject>
-	<g>
-	 <image id="svg_3" href="%s" height="184" width="184" y="20" x="20"/>
-	 <image id="svg_2" href="%s" height="224" width="224" y="0" x="0"/>
+		<foreignObject width="640" height="570">
+			<video xmlns="http://www.w3.org/1999/xhtml" poster="%s" width="640" height="570" autoplay="" loop="">
+			<source src="%s" type="video/webm"/>
+			<source src="%s" type="video/mp4"/>
+				<source src="%[1]s"/>
+			</video>
+		</foreignObject>
+		<g>
+		<image id="svg_3" href="%s" height="184" width="184" y="40" x="40"/>
+		<image id="svg_2" href="%s" height="224" width="224" y="20" x="20"/>
+		</g>
 	</g>
-	</g>
- </svg>`, data.SteamID, data.BackgroundURL, data.AvatarURL, data.FrameURL)
+ </svg>`, data.SteamID, AssetURL+data.ImageURL, AssetURL+data.WebmURL, AssetURL+data.Mp4URL, data.AvatarURL, data.FrameURL)
 
 	cc.cache.Set(c.Request().URL.Path, *data, cache.DefaultExpiration)
 	if c.QueryParam("format") == "json" {
 		return c.JSON(http.StatusOK, data)
 	}
-	return c.Blob(http.StatusOK, "image/svg+xml", []byte(data.Html))
+	c.Response().Header().Set(echo.HeaderContentType, "image/svg+xml")
+	return c.Render(http.StatusOK, "profile", data)
+	//return c.Blob(http.StatusOK, "image/svg+xml", []byte(data.Html))
 }
 
 func fetchAvatarData(name string, client *http.Client, steamAPIKey string) (*AvatarResponse, error) {
@@ -202,5 +230,10 @@ func fetchProfileData(name string, client *http.Client, steamAPIKey string) (*Pr
 		return nil, err
 	}
 
-	return &ProfileResponse{AvatarResponse: *data, BackgroundURL: background}, nil
+	return &ProfileResponse{
+		AvatarResponse: *data,
+		WebmURL:        background.Response.ProfileBackground.MovieWebm,
+		Mp4URL:         background.Response.ProfileBackground.MovieMP4,
+		ImageURL:       background.Response.ProfileBackground.ImageLarge,
+	}, nil
 }

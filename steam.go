@@ -61,6 +61,10 @@ type GetMiniProfileBackgroundResponse struct {
 	} `json:"response"`
 }
 
+const (
+	AssetURL = "https://cdn.akamai.steamstatic.com/steamcommunity/public/images/"
+)
+
 func GetSteamID(client *http.Client, steamAPIKey, vanityURL string) (string, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key=%s&vanityurl=%s", steamAPIKey, vanityURL), nil)
 	if err != nil {
@@ -153,15 +157,15 @@ func GetAvatar(client *http.Client, steamAPIKey, steamID string) (string, error)
 	return data.Response.Players[0].AvatarFull, nil
 }
 
-func GetMiniProfileBackground(client *http.Client, steamAPIKey, steamID string) (string, error) {
+func GetMiniProfileBackground(client *http.Client, steamAPIKey, steamID string) (*GetMiniProfileBackgroundResponse, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.steampowered.com/IPlayerService/GetMiniProfileBackground/v1/?key=%s&steamid=%s", steamAPIKey, steamID), nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -169,10 +173,10 @@ func GetMiniProfileBackground(client *http.Client, steamAPIKey, steamID string) 
 
 	err = json.NewDecoder(resp.Body).Decode(&data)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return fmt.Sprintf("https://cdn.akamai.steamstatic.com/steamcommunity/public/images/%s", data.Response.ProfileBackground.MovieMP4), nil
+	return &data, nil
 }
 
 func isSteamID(name string) bool {
