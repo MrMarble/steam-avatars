@@ -18,11 +18,16 @@ type Context struct {
 	cache       *cache.Cache
 }
 
-type Response struct {
+type AvatarResponse struct {
 	SteamID   string `json:"steamid"`
 	AvatarURL string `json:"avatar_url"`
 	FrameURL  string `json:"frame_url"`
 	Html      string `json:"html"`
+}
+
+type ProfileResponse struct {
+	AvatarResponse
+	BackgroundURL string `json:"background_url"`
 }
 
 func main() {
@@ -52,7 +57,7 @@ func main() {
 				if c.QueryParam("format") == "json" {
 					return c.JSON(http.StatusOK, cached)
 				} else {
-					return c.Blob(http.StatusOK, "image/svg+xml", []byte(cached.(Response).Html))
+					return c.Blob(http.StatusOK, "image/svg+xml", []byte(cached.(AvatarResponse).Html))
 				}
 			}
 
@@ -73,6 +78,7 @@ func main() {
 
 	// Routes
 	e.GET("/avatar/:name", avatar)
+	e.GET("/profile/:name", profile)
 
 	// Start server
 	port := os.Getenv("PORT")
@@ -92,7 +98,7 @@ func avatar(c echo.Context) error {
 		steamAPIKey = c.QueryParam("key")
 	}
 
-	data, err := fetchSteamData(name, cc.client, steamAPIKey)
+	data, err := fetchAvatarData(name, cc.client, steamAPIKey)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
@@ -113,7 +119,45 @@ func avatar(c echo.Context) error {
 	return c.Blob(http.StatusOK, "image/svg+xml", []byte(data.Html))
 }
 
-func fetchSteamData(name string, client *http.Client, steamAPIKey string) (*Response, error) {
+// Handler
+func profile(c echo.Context) error {
+	name := c.Param("name")
+	cc := c.(*Context)
+
+	steamAPIKey := cc.SteamAPIKey
+	if c.QueryParams().Has("key") {
+		steamAPIKey = c.QueryParam("key")
+	}
+
+	data, err := fetchProfileData(name, cc.client, steamAPIKey)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	data.Html = fmt.Sprintf(`<svg width="640" height="570" viewbox="0 0 640 570" xmlns="http://www.w3.org/2000/svg">
+	<title>Steam avatar of %s</title>
+	<desc>Generated with https://github.com/mrmarble/steam-avatars</desc>
+	<g>
+	<foreignObject width="640" height="570">
+	<video xmlns="http://www.w3.org/1999/xhtml" width="640" height="570" autoplay="" loop="">
+	<source src="%s" type="video/mp4"/>
+	</video>
+	</foreignObject>
+	<g>
+	 <image id="svg_3" href="%s" height="184" width="184" y="20" x="20"/>
+	 <image id="svg_2" href="%s" height="224" width="224" y="0" x="0"/>
+	</g>
+	</g>
+ </svg>`, data.SteamID, data.BackgroundURL, data.AvatarURL, data.FrameURL)
+
+	cc.cache.Set(c.Request().URL.Path, *data, cache.DefaultExpiration)
+	if c.QueryParam("format") == "json" {
+		return c.JSON(http.StatusOK, data)
+	}
+	return c.Blob(http.StatusOK, "image/svg+xml", []byte(data.Html))
+}
+
+func fetchAvatarData(name string, client *http.Client, steamAPIKey string) (*AvatarResponse, error) {
 	// Check if name is a steamID
 	steamID := name
 	if !isSteamID(steamID) {
@@ -140,9 +184,23 @@ func fetchSteamData(name string, client *http.Client, steamAPIKey string) (*Resp
 		return nil, err
 	}
 
-	return &Response{
+	return &AvatarResponse{
 		SteamID:   steamID,
 		AvatarURL: avatar,
 		FrameURL:  frame,
 	}, nil
+}
+
+func fetchProfileData(name string, client *http.Client, steamAPIKey string) (*ProfileResponse, error) {
+	data, err := fetchAvatarData(name, client, steamAPIKey)
+	if err != nil {
+		return nil, err
+	}
+
+	background, err := GetMiniProfileBackground(client, steamAPIKey, data.SteamID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ProfileResponse{AvatarResponse: *data, BackgroundURL: background}, nil
 }
