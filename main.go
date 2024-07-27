@@ -1,23 +1,29 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"io"
 	"net/http"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/mrmarble/steam-avatars/components"
 	"github.com/patrickmn/go-cache"
 )
 
 type Context struct {
+	SteamAPIKey  string
+	client       *http.Client
+	cache        *cache.Cache
+	lastSearches []string
+	m            sync.Mutex
 	echo.Context
-	SteamAPIKey string
-	client      *http.Client
-	cache       *cache.Cache
 }
 
 type AvatarResponse struct {
@@ -46,10 +52,19 @@ func main() {
 	// Echo instance
 	e := echo.New()
 	t := &Template{
-		templates: template.Must(template.ParseGlob("templates/*.svg")),
+		templates: template.Must(template.New("hack.tmpl").Funcs(template.FuncMap{
+			"url": func(s string) template.URL {
+				return template.URL(s)
+			},
+		}).ParseGlob("public/templates/*")),
 	}
+
 	e.Renderer = t
-	limiter := middleware.NewRateLimiterMemoryStore(1)
+	limiter := middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
+		Rate:      20,
+		Burst:     10,
+		ExpiresIn: 1 * time.Minute,
+	})
 	rateLimiterConfig := middleware.DefaultRateLimiterConfig
 	rateLimiterConfig.Store = limiter
 	rateLimiterConfig.Skipper = func(c echo.Context) bool {
@@ -58,13 +73,23 @@ func main() {
 	}
 
 	cache := cache.New(24*time.Hour, 1*time.Hour)
+	cc := &Context{os.Getenv("STEAM_API_KEY"), &http.Client{}, cache, []string{}, sync.Mutex{}, nil}
+
+	e.Group("", func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Response().Header().Set(echo.HeaderCacheControl, "public, max-age=86400")
+			return next(c)
+		}
+	}).Static("/static", "public")
 
 	// Middleware
 	e.Use(middleware.RateLimiterWithConfig(rateLimiterConfig))
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			cacheKey := c.Request().URL.Path
-
+			if !strings.HasPrefix(cacheKey, "/avatar/") {
+				return next(c)
+			}
 			// Set Cache-Control header
 			c.Response().Header().Set(echo.HeaderCacheControl, "public, max-age=86400")
 
@@ -88,7 +113,7 @@ func main() {
 	})
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			cc := &Context{c, os.Getenv("STEAM_API_KEY"), &http.Client{}, cache}
+			cc.Context = c
 			return next(cc)
 		}
 	})
@@ -99,6 +124,8 @@ func main() {
 	e.Use(middleware.Recover())
 
 	// Routes
+	e.GET("/", home)
+	e.POST("/", search)
 	e.GET("/avatar/:name", avatar)
 	e.GET("/profile/:name", profile)
 
@@ -108,6 +135,71 @@ func main() {
 		port = "1323"
 	}
 	e.Logger.Fatal(e.Start(":" + port))
+}
+
+func home(c echo.Context) error {
+
+	return components.Index().Render(c.Request().Context(), c.Response().Writer)
+}
+
+func search(c echo.Context) error {
+	name := c.FormValue("name")
+	target := c.FormValue("target")
+	cc := c.(*Context)
+
+	if name == "" {
+		return c.Render(http.StatusOK, "home", struct{ Error string }{"Please enter a Steam username or ID"})
+	}
+	steamid, err := steamID(name, c.(*Context))
+	if err != nil {
+		return c.Render(http.StatusOK, "home", struct{ Error string }{err.Error()})
+	}
+
+	found := false
+	for _, id := range cc.lastSearches {
+		if id == steamid {
+			found = true
+			break
+		}
+	}
+	if !found {
+		cc.m.Lock()
+		if len(cc.lastSearches) >= 5 {
+			cc.lastSearches = cc.lastSearches[1:]
+		}
+		cc.lastSearches = append(cc.lastSearches, steamid)
+		cc.m.Unlock()
+	}
+
+	return c.Redirect(http.StatusSeeOther, fmt.Sprintf("/%s/%s", target, steamid))
+}
+
+func steamID(name string, cc *Context) (string, error) {
+	if isSteamID(name) {
+		return name, nil
+	}
+
+	if steamID, ok := cc.cache.Get(name); ok {
+		return steamID.(string), nil
+	}
+
+	steamID, err := GetSteamID(cc.client, cc.SteamAPIKey, name)
+	if err != nil {
+		return "", err
+	}
+
+	cc.cache.Set(name, steamID, cache.DefaultExpiration)
+	return steamID, nil
+}
+
+func downloadFile(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return io.ReadAll(resp.Body)
 }
 
 // Handler
@@ -125,22 +217,14 @@ func avatar(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	data.Html = fmt.Sprintf(`<svg width="224" height="224" viewbox="0 0 224 224" xmlns="http://www.w3.org/2000/svg">
-	<title>Steam avatar of %s</title>
-	<desc>Generated with https://github.com/mrmarble/steam-avatars</desc>
-	<g>
-	 <image id="svg_3" href="%s" height="184" width="184" y="20" x="20"/>
-	 <image id="svg_2" href="%s" height="224" width="224" y="0" x="0"/>
-	</g>
- </svg>`, data.SteamID, data.AvatarURL, data.FrameURL)
-
 	cc.cache.Set(c.Request().URL.Path, *data, cache.DefaultExpiration)
 	if c.QueryParam("format") == "json" {
 		return c.JSON(http.StatusOK, data)
 	}
 	c.Response().Header().Set(echo.HeaderContentType, "image/svg+xml")
-	return c.Render(http.StatusOK, "avatar", data)
+	//return c.Render(http.StatusOK, "avatar", data)
 	//return c.Blob(http.StatusOK, "image/svg+xml", []byte(data.Html))
+	return components.Avatar(data.SteamID, data.AvatarURL, data.FrameURL).Render(c.Request().Context(), c.Response().Writer)
 }
 
 // Handler
@@ -158,24 +242,6 @@ func profile(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	data.Html = fmt.Sprintf(`<svg width="640" height="570" viewbox="0 0 640 570" xmlns="http://www.w3.org/2000/svg">
-	<title>Steam avatar of %s</title>
-	<desc>Generated with https://github.com/mrmarble/steam-avatars</desc>
-	<g>
-		<foreignObject width="640" height="570">
-			<video xmlns="http://www.w3.org/1999/xhtml" poster="%s" width="640" height="570" autoplay="" loop="">
-			<source src="%s" type="video/webm"/>
-			<source src="%s" type="video/mp4"/>
-				<source src="%[1]s"/>
-			</video>
-		</foreignObject>
-		<g>
-		<image id="svg_3" href="%s" height="184" width="184" y="40" x="40"/>
-		<image id="svg_2" href="%s" height="224" width="224" y="20" x="20"/>
-		</g>
-	</g>
- </svg>`, data.SteamID, AssetURL+data.ImageURL, AssetURL+data.WebmURL, AssetURL+data.Mp4URL, data.AvatarURL, data.FrameURL)
-
 	cc.cache.Set(c.Request().URL.Path, *data, cache.DefaultExpiration)
 	if c.QueryParam("format") == "json" {
 		return c.JSON(http.StatusOK, data)
@@ -188,6 +254,7 @@ func profile(c echo.Context) error {
 func fetchAvatarData(name string, client *http.Client, steamAPIKey string) (*AvatarResponse, error) {
 	// Check if name is a steamID
 	steamID := name
+	isAnimated := true
 	if !isSteamID(steamID) {
 		var err error
 		steamID, err = GetSteamID(client, steamAPIKey, name)
@@ -201,16 +268,32 @@ func fetchAvatarData(name string, client *http.Client, steamAPIKey string) (*Ava
 		return nil, err
 	}
 	if avatar == "" {
+		isAnimated = false
 		avatar, err = GetAvatar(client, steamAPIKey, steamID)
 		if err != nil {
 			return nil, err
 		}
+	}
+	avatarFile, err := downloadFile(avatar)
+	if err != nil {
+		return nil, err
+	}
+	if isAnimated {
+		avatar = fmt.Sprintf("data:image/gif;base64,%s", base64.StdEncoding.EncodeToString(avatarFile))
+	} else {
+		avatar = fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(avatarFile))
 	}
 
 	frame, err := GetAvatarFrame(client, steamAPIKey, steamID)
 	if err != nil {
 		return nil, err
 	}
+
+	frameFile, err := downloadFile(frame)
+	if err != nil {
+		return nil, err
+	}
+	frame = fmt.Sprintf("data:image/apng;base64,%s", base64.StdEncoding.EncodeToString(frameFile))
 
 	return &AvatarResponse{
 		SteamID:   steamID,
