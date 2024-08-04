@@ -1,4 +1,6 @@
-package components
+package templates
+
+var scriptHanlde = templ.NewOnceHandle()
 
 templ Index() {
 	<!DOCTYPE html>
@@ -9,6 +11,7 @@ templ Index() {
 			<title>Steam Avatars</title>
 			<meta name="description" content="Extract your animated Steam avatar"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<link rel="icon" href="/static/favicon.ico" type="image/x-icon"/>
 			<script src="https://unpkg.com/htmx.org@2.0.1" defer></script>
 			<style>
         @font-face {
@@ -139,21 +142,31 @@ templ Index() {
       isolation: isolate;
     }
       </style>
+			@scriptHanlde.Once() {
+				<script>
+        function copyToClipboard(event) {
+          event.preventDefault();
+          event.stopPropagation();
+          const input = document.querySelector('#avatar_link');
+          input.focus();
+          input.select();
+          document.execCommand('copy');
+        }
+      </script>
+			}
 		</head>
 		<body>
 			<main>
 				<div id="form">
 					<h1>STEAM AVATARS</h1>
-					<form hx-post="/" hx-disabled-elt="find input[type='text'], find button">
+					<form hx-post="/" hx-disabled-elt="find input[type='text'], find button" hx-target="#result">
 						<input type="text" name="name" placeholder="Steam ID or Vanity url" required/>
 						<button type="submit" class="green" value="avatar" name="target">
 							Avatar
 						</button>
-						<button type="submit" value="profile" name="target">
-							Profile
-						</button>
 						<img src="/static/bars.svg" class="htmx-indicator" height="24" style="vertical-align: middle"/>
 					</form>
+					<div id="result"></div>
 				</div>
 			</main>
 		</body>

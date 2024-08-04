@@ -61,10 +61,6 @@ type GetMiniProfileBackgroundResponse struct {
 	} `json:"response"`
 }
 
-const (
-	AssetURL = "https://cdn.akamai.steamstatic.com/steamcommunity/public/images/"
-)
-
 func GetSteamID(client *http.Client, steamAPIKey, vanityURL string) (string, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key=%s&vanityurl=%s", steamAPIKey, vanityURL), nil)
 	if err != nil {

@@ -138,7 +138,6 @@ func main() {
 }
 
 func home(c echo.Context) error {
-
 	return components.Index().Render(c.Request().Context(), c.Response().Writer)
 }
 
