@@ -13,30 +13,9 @@ templ Index() {
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<link rel="icon" href="/static/favicon.ico" type="image/x-icon"/>
 			<script src="https://unpkg.com/htmx.org@2.0.1" defer></script>
+      <link rel="stylesheet" href="/static/main.css">
 			<style>
-        @font-face {
-          font-family: 'Motiva Sans';
-          src: local('Motiva Sans Bold'), local('MotivaSans-Bold'),
-            url('static/fonts/MotivaSans-Bold.woff2') format('woff2'),
-            url('static/fonts/MotivaSans-Bold.woff') format('woff');
-          font-weight: bold;
-          font-style: normal;
-          font-display: swap;
-        }
 
-        @font-face {
-          font-family: 'Motiva Sans';
-          src: local('Motiva Sans Regular'), local('MotivaSans-Regular'),
-            url('static/fonts/MotivaSans-Regular.woff2') format('woff2'),
-            url('static/fonts/MotivaSans-Regular.woff') format('woff');
-          font-weight: normal;
-          font-style: normal;
-          font-display: swap;
-        }
-
-        .htmx-indicator {
-          opacity: 0;
-        }
 
         body {
           background-color: #171d25;
@@ -115,31 +94,6 @@ templ Index() {
       list-style: none;
       padding: 0;
       gap: 10px;
-    }
-        *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-    }
-
-    * {
-      margin: 0;
-    }
-
-    body {
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-    }
-
-        input,
-    textarea,
-    select {
-      font: inherit;
-    }
-
-    #root,
-    #__next {
-      isolation: isolate;
     }
       </style>
 			@scriptHanlde.Once() {

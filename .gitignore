@@ -1,1 +1,5 @@
 .env
+tailwindcss/node_modules
+steam-avatars
+assets/main.css
+tmp

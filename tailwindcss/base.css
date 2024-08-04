@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'Motiva Sans';
+  src: local('Motiva Sans Bold'), local('MotivaSans-Bold'),
+    url('fonts/MotivaSans-Bold.woff2') format('woff2'),
+    url('fonts/MotivaSans-Bold.woff') format('woff');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Motiva Sans';
+  src: local('Motiva Sans Regular'), local('MotivaSans-Regular'),
+    url('fonts/MotivaSans-Regular.woff2') format('woff2'),
+    url('fonts/MotivaSans-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.htmx-indicator {
+  opacity: 0;
+}
