@@ -54,5 +54,6 @@ COPY --from=builder /app/database.sql /database.sql
 COPY --from=builder /app/assets /assets
 COPY --from=tailwind /assets/main.css /assets/main.css
 
+EXPOSE 8080
 # Run the hello binary.
 ENTRYPOINT ["/steam-avatars"]
