@@ -1,8 +1,13 @@
 package templates
 
+import (
+	"github.com/mrmarble/steam-avatars/internal/database"
+	"strconv"
+)
+
 var scriptHanlde = templ.NewOnceHandle()
 
-templ Index() {
+templ Index(recent []database.User) {
 	<!DOCTYPE html>
 	<html>
 		<head>
@@ -30,17 +35,24 @@ templ Index() {
 		</head>
 		<body>
 			<main class="flex flex-col relative mt-[10%] mb-8 items-center">
-					<h1 class="text-5xl font-bold text-white mb-4">STEAM AVATARS</h1>
-					<form class="" hx-post="/" hx-disabled-elt="find input[type='text'], find button" hx-target="#result">
-						<input class="w-80" type="text" name="name" placeholder="Steam ID or Vanity url" required/>
-						<button type="submit" class="green" value="avatar" name="target">
-							<img src="/static/bars.svg" class="htmx-indicator h-4 inline-block" height="16"/>
-							<span>Avatar</span>
-						</button>
-					</form>
+				<h1 class="text-5xl font-bold text-white mb-4">STEAM AVATARS</h1>
+				<form class="" hx-post="/" hx-disabled-elt="find input[type='text'], find button" hx-target="#result" hx-swap="innerHTML">
+					<input class="w-80" type="text" name="name" placeholder="Steam ID or Vanity url" required/>
+					<button type="submit" class="green" value="avatar" name="target">
+						<img src="/static/bars.svg" class="htmx-indicator h-4 inline-block" height="16"/>
+						<span>Avatar</span>
+					</button>
+				</form>
 			</main>
-      <section id="result" class="flex flex-col items-center">
-      </section>
+			<section id="result" class="flex flex-col items-center"></section>
+			<section id="recent" class="flex flex-col items-center gap-4 mt-8">
+				<h2 class="text-2xl font-bold text-white">Recent searches</h2>
+				<div class="flex gap-4 justify-center">
+					for _, user := range recent {
+						<object data={ "/avatar/" + strconv.FormatInt(user.ID, 10) } type="image/svg+xml" class="w-28" title={user.DisplayName}></object>
+					}
+				</div>
+			</section>
 		</body>
 	</html>
 }

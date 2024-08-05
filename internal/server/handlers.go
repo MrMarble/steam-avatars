@@ -16,7 +16,12 @@ import (
 )
 
 func handleIndex(c echo.Context) error {
-	page := templates.Index()
+	cc := c.(*Context)
+	users, err := cc.db.GetLatestUsers()
+	if err != nil {
+		c.Logger().Error(err)
+	}
+	page := templates.Index(users)
 	return renderView(c, page)
 }
 
@@ -28,16 +33,6 @@ func handleSearch(c echo.Context) error {
 	}
 
 	c.Logger().Info("searching for vanity URL ", name)
-
-	err := cc.db.CreateQuery(&database.Query{
-		Query:     name,
-		IP:        "",
-		Country:   "",
-		CreatedAt: time.Now().Format(time.RFC3339),
-	})
-	if err != nil {
-		return err
-	}
 
 	user, err := cc.db.GetUserByVanityOrID(name)
 	if err != nil && err != sql.ErrNoRows {

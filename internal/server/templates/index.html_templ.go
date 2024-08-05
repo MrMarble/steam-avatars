@@ -8,9 +8,14 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import (
+	"github.com/mrmarble/steam-avatars/internal/database"
+	"strconv"
+)
+
 var scriptHanlde = templ.NewOnceHandle()
 
-func Index() templ.Component {
+func Index(recent []database.User) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -54,7 +59,43 @@ func Index() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</head><body><main class=\"flex flex-col relative mt-[10%] mb-8 items-center\"><h1 class=\"text-5xl font-bold text-white mb-4\">STEAM AVATARS</h1><form class=\"\" hx-post=\"/\" hx-disabled-elt=\"find input[type=&#39;text&#39;], find button\" hx-target=\"#result\"><input class=\"w-80\" type=\"text\" name=\"name\" placeholder=\"Steam ID or Vanity url\" required> <button type=\"submit\" class=\"green\" value=\"avatar\" name=\"target\"><img src=\"/static/bars.svg\" class=\"htmx-indicator h-4 inline-block\" height=\"16\"> <span>Avatar</span></button></form></main><section id=\"result\" class=\"flex flex-col items-center\"></section></body></html>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</head><body><main class=\"flex flex-col relative mt-[10%] mb-8 items-center\"><h1 class=\"text-5xl font-bold text-white mb-4\">STEAM AVATARS</h1><form class=\"\" hx-post=\"/\" hx-disabled-elt=\"find input[type=&#39;text&#39;], find button\" hx-target=\"#result\" hx-swap=\"innerHTML\"><input class=\"w-80\" type=\"text\" name=\"name\" placeholder=\"Steam ID or Vanity url\" required> <button type=\"submit\" class=\"green\" value=\"avatar\" name=\"target\"><img src=\"/static/bars.svg\" class=\"htmx-indicator h-4 inline-block\" height=\"16\"> <span>Avatar</span></button></form></main><section id=\"result\" class=\"flex flex-col items-center\"></section><section id=\"recent\" class=\"flex flex-col items-center gap-4 mt-8\"><h2 class=\"text-2xl font-bold text-white\">Recent searches</h2><div class=\"flex gap-4 justify-center\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for _, user := range recent {
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<object data=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var3 string
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs("/avatar/" + strconv.FormatInt(user.ID, 10))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/index.html.templ`, Line: 52, Col: 64}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" type=\"image/svg+xml\" class=\"w-28\" title=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var4 string
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(user.DisplayName)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/index.html.templ`, Line: 52, Col: 124}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"></object>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></section></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

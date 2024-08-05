@@ -39,11 +39,21 @@ func (db *Database) CreateUser(user *User) error {
 	return nil
 }
 
-func (db *Database) CreateQuery(query *Query) error {
-	_, err := db.db.Exec("INSERT INTO queries (query, ip, country, created_at) VALUES (?, ?, ?, ?)", query.Query, query.IP, query.Country, query.CreatedAt)
+func (db *Database) GetLatestUsers() ([]User, error) {
+	rows, err := db.db.Query("SELECT * FROM users ORDER BY updated_at,created_at DESC LIMIT 10")
 	if err != nil {
-		return err
+		return nil, err
+	}
+	defer rows.Close()
+	users := make([]User, 0)
+	for rows.Next() {
+		user := User{}
+		err := rows.Scan(&user.ID, &user.DisplayName, &user.VanityURL, &user.Avatar, &user.Frame, &user.CreatedAt, &user.UpdateAt)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
 	}
 
-	return nil
+	return users, nil
 }

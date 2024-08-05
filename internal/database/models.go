@@ -11,10 +11,3 @@ type User struct {
 	CreatedAt   string         `json:"created_at"`
 	UpdateAt    sql.NullString `json:"update_at"`
 }
-
-type Query struct {
-	Query     string `json:"query"`
-	IP        string `json:"ip"`
-	Country   string `json:"country"`
-	CreatedAt string `json:"created_at"`
-}

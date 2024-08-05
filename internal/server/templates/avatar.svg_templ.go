@@ -26,7 +26,7 @@ func Avatar(steamID, avatarURL, frameURL string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<svg width=\"224\" height=\"224\" viewbox=\"0 0 224 224\" xmlns=\"http://www.w3.org/2000/svg\"><title>Steam avatar of ")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<svg width=\"224\" height=\"224\" viewBox=\"0 0 224 224\" xmlns=\"http://www.w3.org/2000/svg\"><title>Steam avatar of ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
