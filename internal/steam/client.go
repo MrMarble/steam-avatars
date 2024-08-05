@@ -53,13 +53,17 @@ func (c *Client) get(url string, params map[string]string, v interface{}) error 
 }
 
 func (c *Client) GetSteamID(vanityURL string) (string, error) {
+	if IsSteamID(vanityURL) {
+		return vanityURL, nil
+	}
+
 	var data ResolveVanityURLResponse
 	err := c.get("/ISteamUser/ResolveVanityURL/v1/", map[string]string{"vanityurl": vanityURL}, &data)
 	if err != nil {
 		return "", err
 	}
 	if data.Response.Success != 1 {
-		return "", fmt.Errorf("failed to resolve vanity URL")
+		return "", fmt.Errorf("vanity url not found")
 	}
 
 	return data.Response.SteamID, nil
@@ -72,6 +76,10 @@ func (c *Client) GetAvatarFrame(steamID string) (string, error) {
 		return "", err
 	}
 
+	if data.Response.AvatarFrame.ImageSmall == "" {
+		return "", nil
+	}
+
 	return fmt.Sprintf("%s%s", assetURL, data.Response.AvatarFrame.ImageSmall), nil
 
 }
@@ -81,6 +89,10 @@ func (c *Client) GetAnimatedAvatar(steamID string) (string, error) {
 	err := c.get("/IPlayerService/GetAnimatedAvatar/v1/", map[string]string{"steamid": steamID}, &data)
 	if err != nil {
 		return "", err
+	}
+
+	if data.Response.AvatarFrame.ImageSmall == "" {
+		return "", nil
 	}
 
 	return fmt.Sprintf("%s%s", assetURL, data.Response.AvatarFrame.ImageSmall), nil

@@ -22,6 +22,47 @@
   font-display: swap;
 }
 
+body {
+  background-color: #171d25;
+  @apply text-white;
+}
+
+button {
+  width: 120px;
+  background: linear-gradient(90deg, #06BFFF 0%, #2D73FF 100%);
+  border-radius: 2px;
+  border: none;
+  outline: none;
+  padding: 10px;
+  color: #fff;
+  text-align: center;
+}
+
+button.green {
+  background: linear-gradient(to right, #75b022 5%, #588a1b 95%);
+}
+
+input {
+  border-radius: 2px;
+  padding: 10px;
+  background-color: #32353c;
+  outline: none;
+  grid-area: input;
+  border: 1px solid #32353c;
+}
+
 .htmx-indicator {
-  opacity: 0;
+  display: none;
+}
+
+.htmx-request .htmx-indicator {
+  display: inline;
+}
+
+.htmx-request.htmx-indicator {
+  display: inline;
+}
+
+.htmx-request button span {
+  display:none
 }

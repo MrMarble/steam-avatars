@@ -1,3 +1,10 @@
+default: setup
+
+setup:
+    go install github.com/a-h/templ/cmd/templ@latest
+    go install github.com/air-verse/air@latest
+    go mod tidy
+
 generate:
     go generate ./...
 
@@ -14,5 +21,4 @@ tailwind-watch:
     cd tailwindcss && pnpm watch-css
 
 watch: 
-    just tailwind-watch &
     air

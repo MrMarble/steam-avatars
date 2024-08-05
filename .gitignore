@@ -1,5 +1,6 @@
 .env
 tailwindcss/node_modules
-steam-avatars
+/steam-avatars
 assets/main.css
 tmp
+*.db*

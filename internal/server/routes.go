@@ -25,3 +25,9 @@ func renderView(c echo.Context, cmp templ.Component) error {
 
 	return cmp.Render(c.Request().Context(), c.Response().Writer)
 }
+
+func renderSVG(c echo.Context, cmp templ.Component) error {
+	c.Response().Header().Set(echo.HeaderContentType, "image/svg+xml")
+
+	return cmp.Render(c.Request().Context(), c.Response().Writer)
+}

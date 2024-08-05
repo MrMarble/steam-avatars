@@ -17,7 +17,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	log := zerolog.New(os.Stdout)
+	output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
+	log := zerolog.New(output).With().Timestamp().Logger()
 
 	db, err := database.OpenDB()
 	if err != nil {
@@ -50,5 +51,8 @@ func main() {
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
 		log.Fatal().Err(err).Msg("shutting down the server")
+	}
+	if err := db.Close(); err != nil {
+		log.Fatal().Err(err).Msg("closing the database")
 	}
 }

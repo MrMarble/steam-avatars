@@ -13,95 +13,14 @@ templ Index() {
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<link rel="icon" href="/static/favicon.ico" type="image/x-icon"/>
 			<script src="https://unpkg.com/htmx.org@2.0.1" defer></script>
-      <link rel="stylesheet" href="/static/main.css">
-			<style>
-
-
-        body {
-          background-color: #171d25;
-          color: #fff;
-          font-family: "Motiva Sans", "Twemoji", "Noto Sans", Helvetica, sans-serif;
-          padding: 0;
-          margin: 0;
-          line-height: 1.5;
-        }
-
-        main {
-          display: flex;
-          height: 100vh;
-          flex-direction: column;
-          align-items: center;
-        }
-            button {
-      width: 120px;
-      position: relative;
-      background: linear-gradient(90deg, #06BFFF 0%, #2D73FF 100%);
-      border-radius: 2px;
-      border: none;
-      outline: none;
-      padding: 12px;
-      color: #fff;
-      font-size: 16px;
-      font-weight: 400;
-      font-family: inherit;
-      text-align: center;
-      cursor: pointer;
-    }
-
-    button.green {
-      background: linear-gradient(to right, #75b022 5%, #588a1b 95%);
-    }
-
-    #form {
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      margin-top: 10%;
-      margin-bottom: 20px;
-      align-items: center;
-    }
-
-    h1 {
-      font-size: 42px;
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    input {
-      width: 340px;
-      border-radius: 2px;
-      color: #fff;
-      padding: 10px;
-      background-color: #32353c;
-      outline: none;
-      font-size: 15px;
-      grid-area: input;
-      border: 1px solid #32353c;
-    }
-
-    .error {
-      color: #c15755;
-      font-size: 18px;
-      font-weight: 500;
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    ul {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      list-style: none;
-      padding: 0;
-      gap: 10px;
-    }
-      </style>
+			<link rel="stylesheet" href="/static/main.css"/>
 			@scriptHanlde.Once() {
 				<script>
         function copyToClipboard(event) {
           event.preventDefault();
           event.stopPropagation();
-          const input = document.querySelector('#avatar_link');
+          console.log(event.currentTarget);
+          const input = event.currentTarget.querySelector('input');
           input.focus();
           input.select();
           document.execCommand('copy');
@@ -110,19 +29,18 @@ templ Index() {
 			}
 		</head>
 		<body>
-			<main>
-				<div id="form">
-					<h1>STEAM AVATARS</h1>
-					<form hx-post="/" hx-disabled-elt="find input[type='text'], find button" hx-target="#result">
-						<input type="text" name="name" placeholder="Steam ID or Vanity url" required/>
+			<main class="flex flex-col relative mt-[10%] mb-8 items-center">
+					<h1 class="text-5xl font-bold text-white mb-4">STEAM AVATARS</h1>
+					<form class="" hx-post="/" hx-disabled-elt="find input[type='text'], find button" hx-target="#result">
+						<input class="w-80" type="text" name="name" placeholder="Steam ID or Vanity url" required/>
 						<button type="submit" class="green" value="avatar" name="target">
-							Avatar
+							<img src="/static/bars.svg" class="htmx-indicator h-4 inline-block" height="16"/>
+							<span>Avatar</span>
 						</button>
-						<img src="/static/bars.svg" class="htmx-indicator" height="24" style="vertical-align: middle"/>
 					</form>
-					<div id="result"></div>
-				</div>
 			</main>
+      <section id="result" class="flex flex-col items-center">
+      </section>
 		</body>
 	</html>
 }

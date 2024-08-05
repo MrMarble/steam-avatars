@@ -6,7 +6,6 @@ require (
 	github.com/a-h/templ v0.2.747
 	github.com/glebarez/go-sqlite v1.22.0
 	github.com/labstack/echo/v4 v4.12.0
-	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/rs/zerolog v1.33.0
 	github.com/ziflex/lecho/v3 v3.7.0
 )
