@@ -2,8 +2,6 @@ package server
 
 import (
 	"fmt"
-	"io"
-	"net/http"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
@@ -69,30 +67,11 @@ func searchUser(c *steam.Client, query string) (*database.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	/*frameFile, err := downloadFile(frame)
-	if err != nil {
-		return nil, err
-	}
-	frame = fmt.Sprintf("data:image/apng;base64,%s", base64.StdEncoding.EncodeToString(frameFile))
-	*/
+
 	avatar, err := c.GetAnimatedAvatar(steamID)
 	if err != nil {
 		return nil, err
 	}
-
-	/*	if avatar == "" {
-			avatarFile, err := downloadFile(summary.AvatarFull)
-			if err != nil {
-				return nil, err
-			}
-			avatar = fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(avatarFile))
-		} else {
-			avatarFile, err := downloadFile(avatar)
-			if err != nil {
-				return nil, err
-			}
-			avatar = fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(avatarFile))
-		}*/
 
 	ID, _ := strconv.ParseInt(steamID, 10, 64)
 
@@ -124,14 +103,4 @@ func handleAvatar(c echo.Context) error {
 	avatar := templates.Avatar(steamID, user.Avatar, user.Frame)
 
 	return renderSVG(c, avatar)
-}
-
-func downloadFile(url string) ([]byte, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	return io.ReadAll(resp.Body)
 }
