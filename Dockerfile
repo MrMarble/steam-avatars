@@ -1,6 +1,6 @@
 ARG NODE_IMAGE=node:22-alpine
-ARG  BUILDER_IMAGE=golang:1.22-alpine
-ARG  DISTROLESS_IMAGE=gcr.io/distroless/base
+ARG BUILDER_IMAGE=golang:1.22-alpine
+ARG DISTROLESS_IMAGE=gcr.io/distroless/base
 ############################
 # STEP 1 build tailwindcss
 ############################
@@ -27,19 +27,16 @@ RUN update-ca-certificates
 # Set the working directory to the root of your Go module
 WORKDIR /app
 
-# Add cache for faster builds
-ENV GOCACHE=$HOME/.cache/go-build
-RUN --mount=type=cache,target=$GOCACHE
-
 # use modules
-COPY go.mod .
+COPY go.mod go.sum ./
 
 RUN go mod download && go mod verify
 
 COPY . .
 
-# Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -a -installsuffix cgo -o /app/steam-avatars ./cmd/steam-avatars
+# Add cache for faster builds
+RUN --mount=type=cache,target=/go/pkg/mod CGO_ENABLED=0 GOOS=linux \
+  go build -ldflags="-w -s" -a -installsuffix cgo -o /app/steam-avatars ./cmd/steam-avatars
 
 ############################
 # STEP 3 build a small image
@@ -50,7 +47,6 @@ FROM ${DISTROLESS_IMAGE}
 
 # Copy our static executable
 COPY --from=builder /app/steam-avatars /steam-avatars
-COPY --from=builder /app/database.sql /database.sql
 COPY --from=builder /app/assets /assets
 COPY --from=tailwind /assets/main.css /assets/main.css
 
