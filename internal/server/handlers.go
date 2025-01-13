@@ -1,27 +1,20 @@
 package server
 
 import (
-	"database/sql"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/mrmarble/steam-avatars/internal/database"
 	"github.com/mrmarble/steam-avatars/internal/server/templates"
 	"github.com/mrmarble/steam-avatars/internal/steam"
+	"github.com/valkey-io/valkey-go"
 )
 
 func handleIndex(c echo.Context) error {
-	cc := c.(*Context)
-	users, err := cc.db.GetLatestUsers()
-	if err != nil {
-		c.Logger().Error(err)
-	}
-	page := templates.Index(users)
+	page := templates.Index()
 	return renderView(c, page)
 }
 
@@ -34,9 +27,16 @@ func handleSearch(c echo.Context) error {
 
 	c.Logger().Info("searching for vanity URL ", name)
 
-	user, err := cc.db.GetUserByVanityOrID(name)
-	if err != nil && err != sql.ErrNoRows {
-		return err
+	var err error
+	var user *database.User
+	if steam.IsSteamID(name) {
+		id, _ := strconv.ParseInt(name, 10, 64)
+		user, err = cc.db.GetUserByID(id)
+	} else {
+		user, err = cc.db.GetUserByVanityURL(name)
+	}
+	if err != nil && !valkey.IsValkeyNil(err) {
+		return fmt.Errorf("failed to search for user: %w", err)
 	}
 
 	if user == nil {
@@ -51,7 +51,7 @@ func handleSearch(c echo.Context) error {
 	}
 
 	strID := strconv.FormatInt(user.ID, 10)
-	return renderView(c, templates.Result(strID, user.Avatar.String, user.Frame.String, c.Request().URL.Scheme+"://"+c.Request().Host+"/avatar/"+strID))
+	return renderView(c, templates.Result(strID, user.Avatar, user.Frame, c.Request().URL.Scheme+"://"+c.Request().Host+"/avatar/"+strID))
 }
 
 func searchUser(c *steam.Client, query string) (*database.User, error) {
@@ -69,40 +69,42 @@ func searchUser(c *steam.Client, query string) (*database.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	frameFile, err := downloadFile(frame)
+	/*frameFile, err := downloadFile(frame)
 	if err != nil {
 		return nil, err
 	}
 	frame = fmt.Sprintf("data:image/apng;base64,%s", base64.StdEncoding.EncodeToString(frameFile))
-
+	*/
 	avatar, err := c.GetAnimatedAvatar(steamID)
 	if err != nil {
 		return nil, err
 	}
 
-	if avatar == "" {
-		avatarFile, err := downloadFile(summary.AvatarFull)
-		if err != nil {
-			return nil, err
-		}
-		avatar = fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(avatarFile))
-	} else {
-		avatarFile, err := downloadFile(avatar)
-		if err != nil {
-			return nil, err
-		}
-		avatar = fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(avatarFile))
-	}
+	/*	if avatar == "" {
+			avatarFile, err := downloadFile(summary.AvatarFull)
+			if err != nil {
+				return nil, err
+			}
+			avatar = fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(avatarFile))
+		} else {
+			avatarFile, err := downloadFile(avatar)
+			if err != nil {
+				return nil, err
+			}
+			avatar = fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(avatarFile))
+		}*/
 
 	ID, _ := strconv.ParseInt(steamID, 10, 64)
 
+	if avatar == "" {
+		avatar = summary.AvatarFull
+	}
 	return &database.User{
 		ID:          ID,
-		VanityURL:   sql.NullString{String: query, Valid: true},
+		VanityURL:   query,
 		DisplayName: summary.PersonaName,
-		Avatar:      sql.NullString{String: avatar, Valid: true},
-		Frame:       sql.NullString{String: frame, Valid: true},
-		CreatedAt:   time.Now().Format(time.RFC3339),
+		Avatar:      avatar,
+		Frame:       frame,
 	}, nil
 }
 
@@ -119,7 +121,7 @@ func handleAvatar(c echo.Context) error {
 		return err
 	}
 
-	avatar := templates.Avatar(steamID, user.Avatar.String, user.Frame.String)
+	avatar := templates.Avatar(steamID, user.Avatar, user.Frame)
 
 	return renderSVG(c, avatar)
 }

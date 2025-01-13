@@ -1,28 +1,16 @@
 package database
 
 import (
-	"database/sql"
-	"os"
-
 	_ "github.com/glebarez/go-sqlite"
+	"github.com/valkey-io/valkey-go"
 )
 
 type Database struct {
-	db *sql.DB
+	client valkey.Client
 }
 
-func OpenDB() (*Database, error) {
-	db, err := sql.Open("sqlite", "avatars.db?_pragma=journal_mode(WAL)")
-	if err != nil {
-		return nil, err
-	}
-
-	init, err := os.ReadFile("database.sql")
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = db.Exec(string(init))
+func OpenDB(endpoint string) (*Database, error) {
+	db, err := valkey.NewClient(valkey.ClientOption{InitAddress: []string{endpoint}})
 	if err != nil {
 		return nil, err
 	}
@@ -30,6 +18,6 @@ func OpenDB() (*Database, error) {
 	return &Database{db}, nil
 }
 
-func (db *Database) Close() error {
-	return db.db.Close()
+func (db *Database) Close() {
+	db.client.Close()
 }

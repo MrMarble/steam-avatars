@@ -1,59 +1,52 @@
 package database
 
+import (
+	"context"
+	"fmt"
+	"strconv"
+	"time"
+
+	"github.com/valkey-io/valkey-go"
+)
+
 func (db *Database) GetUserByID(id int64) (*User, error) {
-	user := &User{}
-	err := db.db.QueryRow("SELECT * FROM users WHERE id = ?", id).Scan(&user.ID, &user.DisplayName, &user.VanityURL, &user.Avatar, &user.Frame, &user.CreatedAt, &user.UpdateAt)
-	if err != nil {
+	var users []*User
+	ctx := context.Background()
+	if err := valkey.DecodeSliceOfJSON(db.client.DoCache(ctx, valkey.Cacheable(db.client.B().Mget().Key(strconv.Itoa(int(id))).Build()), time.Hour*24), &users); err != nil {
 		return nil, err
 	}
 
-	return user, nil
+	if len(users) == 0 {
+		return nil, nil
+	}
+
+	return users[0], nil
 }
 
 func (db *Database) GetUserByVanityURL(vanity_url string) (*User, error) {
-	user := &User{}
-	err := db.db.QueryRow("SELECT * FROM users WHERE vanity_url = ?", vanity_url).Scan(&user.ID, &user.DisplayName, &user.VanityURL, &user.Avatar, &user.Frame, &user.CreatedAt, &user.UpdateAt)
+	ctx := context.Background()
+	userID, err := db.client.DoCache(ctx, valkey.Cacheable(db.client.B().Get().Key(vanity_url).Build()), time.Hour*24).ToString()
 	if err != nil {
 		return nil, err
 	}
 
-	return user, nil
-}
-
-func (db *Database) GetUserByVanityOrID(query string) (*User, error) {
-	user := &User{}
-	err := db.db.QueryRow("SELECT * FROM users WHERE vanity_url = ? OR id = ?", query, query).Scan(&user.ID, &user.DisplayName, &user.VanityURL, &user.Avatar, &user.Frame, &user.CreatedAt, &user.UpdateAt)
+	id, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
 		return nil, err
 	}
 
-	return user, nil
+	return db.GetUserByID(id)
 }
 
 func (db *Database) CreateUser(user *User) error {
-	_, err := db.db.Exec("INSERT INTO users (id, display_name, vanity_url, avatar, frame, created_at) VALUES (?, ?, ?, ?, ?, ?)", user.ID, user.DisplayName, user.VanityURL, user.Avatar, user.Frame, user.CreatedAt)
-	if err != nil {
-		return err
+	ctx := context.Background()
+	// Store vanity URL to ID mapping
+	if err := db.client.Do(ctx, db.client.B().Set().Key(user.VanityURL).Value(strconv.Itoa(int(user.ID))).Build()).Error(); err != nil {
+		return fmt.Errorf("failed to store vanity URL to ID mapping: %w", err)
+	}
+	if err := db.client.Do(ctx, db.client.B().Set().Key(strconv.Itoa(int(user.ID))).Value(valkey.JSON(user)).Build()).Error(); err != nil {
+		return fmt.Errorf("failed to store user: %w", err)
 	}
 
 	return nil
-}
-
-func (db *Database) GetLatestUsers() ([]User, error) {
-	rows, err := db.db.Query("SELECT * FROM users ORDER BY updated_at,created_at DESC LIMIT 10")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	users := make([]User, 0)
-	for rows.Next() {
-		user := User{}
-		err := rows.Scan(&user.ID, &user.DisplayName, &user.VanityURL, &user.Avatar, &user.Frame, &user.CreatedAt, &user.UpdateAt)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, user)
-	}
-
-	return users, nil
 }

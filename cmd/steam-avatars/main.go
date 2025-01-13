@@ -20,7 +20,12 @@ func main() {
 	output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
 	log := zerolog.New(output).With().Timestamp().Logger()
 
-	db, err := database.OpenDB()
+	valkeyEndpoint := os.Getenv("VALKEY_ENDPOINT")
+	if valkeyEndpoint == "" {
+		log.Fatal().Msg("VALKEY_ENDPOINT is required")
+	}
+
+	db, err := database.OpenDB(valkeyEndpoint)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to open database")
 	}
@@ -52,7 +57,6 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		log.Fatal().Err(err).Msg("shutting down the server")
 	}
-	if err := db.Close(); err != nil {
-		log.Fatal().Err(err).Msg("closing the database")
-	}
+	db.Close()
+
 }
