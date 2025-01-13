@@ -1,0 +1,19 @@
+version: "3"
+
+services:
+  valkey:
+    image: docker.io/valkey/valkey:7.2.8-alpine3.21
+    ports:
+      - "6379:6379"
+
+  avatars:
+    image: localhost/steam-avatars:latest
+    build: .
+    restart: always
+    depends_on:
+      - valkey
+    environment:
+      - VALKEY_ENDPOINT=valkey:6379
+      - STEAM_API_KEY=${STEAM_API_KEY}
+    ports:
+      - "8080:8080"
