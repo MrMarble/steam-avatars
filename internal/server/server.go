@@ -32,6 +32,9 @@ func NewServer(logger zerolog.Logger, db *database.Database, steamApiKey string)
 
 	limiterStore := middleware.NewRateLimiterMemoryStore(20)
 
+	secureConfig := middleware.DefaultSecureConfig
+	secureConfig.XFrameOptions = ""
+
 	e.Use(
 		middleware.RequestID(),
 		lecho.Middleware(lecho.Config{
@@ -53,7 +56,7 @@ func NewServer(logger zerolog.Logger, db *database.Database, steamApiKey string)
 		middleware.RateLimiter(limiterStore),
 		middleware.Gzip(),
 		middleware.CORS(),
-		middleware.Secure(),
+		middleware.SecureWithConfig(secureConfig),
 		middleware.Recover(),
 	)
 
