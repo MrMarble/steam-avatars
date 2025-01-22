@@ -11,13 +11,15 @@ import (
 
 func (db *Database) GetUserByID(id int64) (*User, error) {
 	var users []*User
-	ctx := context.Background()
-	if err := valkey.DecodeSliceOfJSON(db.client.DoCache(ctx, valkey.Cacheable(db.client.B().Mget().Key(strconv.Itoa(int(id))).Build()), time.Hour*24), &users); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	if err := valkey.DecodeSliceOfJSON(db.client.Do(ctx, db.client.B().Mget().Key(strconv.Itoa(int(id))).Build()), &users); err != nil {
 		return nil, err
 	}
 
-	if len(users) == 0 {
-		return nil, nil
+	if len(users) == 0 || users[0] == nil {
+		return nil, valkey.Nil
 	}
 
 	return users[0], nil
@@ -25,7 +27,7 @@ func (db *Database) GetUserByID(id int64) (*User, error) {
 
 func (db *Database) GetUserByVanityURL(vanity_url string) (*User, error) {
 	ctx := context.Background()
-	userID, err := db.client.DoCache(ctx, valkey.Cacheable(db.client.B().Get().Key(vanity_url).Build()), time.Hour*24).ToString()
+	userID, err := db.client.Do(ctx, db.client.B().Get().Key(vanity_url).Build()).ToString()
 	if err != nil {
 		return nil, err
 	}
@@ -41,10 +43,10 @@ func (db *Database) GetUserByVanityURL(vanity_url string) (*User, error) {
 func (db *Database) CreateUser(user *User) error {
 	ctx := context.Background()
 	// Store vanity URL to ID mapping
-	if err := db.client.Do(ctx, db.client.B().Set().Key(user.VanityURL).Value(strconv.Itoa(int(user.ID))).Build()).Error(); err != nil {
+	if err := db.client.Do(ctx, db.client.B().Set().Key(user.VanityURL).Value(strconv.Itoa(int(user.ID))).Ex(time.Hour*24).Build()).Error(); err != nil {
 		return fmt.Errorf("failed to store vanity URL to ID mapping: %w", err)
 	}
-	if err := db.client.Do(ctx, db.client.B().Set().Key(strconv.Itoa(int(user.ID))).Value(valkey.JSON(user)).Build()).Error(); err != nil {
+	if err := db.client.Do(ctx, db.client.B().Set().Key(strconv.Itoa(int(user.ID))).Value(valkey.JSON(user)).Ex(time.Hour*24).Build()).Error(); err != nil {
 		return fmt.Errorf("failed to store user: %w", err)
 	}
 
