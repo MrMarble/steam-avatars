@@ -57,6 +57,9 @@ func NewServer(logger zerolog.Logger, db *database.Database, steamApiKey string)
 		middleware.Gzip(),
 		middleware.CORS(),
 		middleware.SecureWithConfig(secureConfig),
+		middleware.TimeoutWithConfig(middleware.TimeoutConfig{
+			Timeout: 3 * time.Second,
+		}),
 		middleware.Recover(),
 	)
 

@@ -63,12 +63,11 @@ func searchUser(c *steam.Client, query string) (*database.User, error) {
 		return nil, err
 	}
 
-	frame, err := c.GetAvatarFrame(steamID)
+	frame, err := downloadFrame(c, steamID)
 	if err != nil {
 		return nil, err
 	}
-
-	avatar, err := c.GetAnimatedAvatar(steamID)
+	avatar, err := donwloadAvatar(c, summary)
 	if err != nil {
 		return nil, err
 	}
@@ -78,6 +77,7 @@ func searchUser(c *steam.Client, query string) (*database.User, error) {
 	if avatar == "" {
 		avatar = summary.AvatarFull
 	}
+
 	return &database.User{
 		ID:          ID,
 		VanityURL:   query,
@@ -96,8 +96,19 @@ func handleAvatar(c echo.Context) error {
 
 	ID, _ := strconv.ParseInt(steamID, 10, 64)
 	user, err := cc.db.GetUserByID(ID)
-	if err != nil {
-		return err
+
+	if valkey.IsValkeyNil(err) {
+		user, err = searchUser(cc.client, steamID)
+		if err != nil {
+			return c.JSON(500, map[string]string{"error": "failed to search for user"})
+		}
+		err = cc.db.CreateUser(user)
+		if err != nil {
+			return c.JSON(500, map[string]string{"error": "failed to create user"})
+		}
+		return renderSVG(c, templates.Avatar(steamID, user.Avatar, user.Frame))
+	} else if err != nil {
+		return c.JSON(500, map[string]string{"error": "failed to get user"})
 	}
 
 	avatar := templates.Avatar(steamID, user.Avatar, user.Frame)
